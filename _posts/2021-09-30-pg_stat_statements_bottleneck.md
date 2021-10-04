@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "What are these slow \"SELECT 1\" in my PostgreSQL logs??"
+title:  "What are these slow COMMIT in my PostgreSQL logs?"
 date:   2021-09-30 12:15:25 +0200
 tags: PostgreSQL performance pg_stat_statements
 ---
@@ -19,6 +19,9 @@ WAL buffers to sync on disk, and maybe WAL compression added some latency) but
 I wouldn't know what to say to the client about this very
 long `select 1`. This query clearly came from PgBouncer: "a simple do-nothing
 query to check if the server connection is alive", but that didn't help much.
+
+{% include babar.html url="/img/babar.jpg" description="Me (embarrassed) and
+my client." %}
 
 Let's have a look at `pg_stat_statements̀ :
 
@@ -108,7 +111,7 @@ done
 ```
 
 These 16 scenarii amounts to 128 unique queries, which we need to reproduce the
-locking problem, since `pg_stat_statements̀.max` lowest possible value is `100`.
+locking problem, since `pg_stat_statements.max` lowest possible value is `100`.
 
 And here is another one to launch 16 pgbench in parallel, one per scenario:
 
@@ -133,8 +136,8 @@ psql -d pgbench -c "select * from pg_stat_statements_info;"
 
 The last line of the above script uses a view that appeared with PostgreSQL 14.
 Indeed it seems I'm not the only one to have notice this problem
-[1](https://www.postgresql.org/message-id/0d9f1107772cf5c3f954e985464c7298%40oss.nttdata.com),
-and it's now possible to know how many deallocation occured since the last reset
+[(see this thread on pgsql-hackers)](https://www.postgresql.org/message-id/0d9f1107772cf5c3f954e985464c7298%40oss.nttdata.com),
+and it's now possible to know how many deallocations occured since the last reset
 of pg_stat_statements. A high number for a small period indicates that
 `pg_stat_statements.max` is too low.
 
@@ -170,7 +173,8 @@ That's 25% less transactions!
 
 What is the cause of this performance drop? It is clearly linked to these 144878
 deallocations, but is it really the locking problem that I thought of? Let's use
-`perf` for a On-CPU analysis of one of the 16 backends:
+`perf` together with [Flame Graph](https://www.brendangregg.com/perf.html#FlameGraphs)
+for a On-CPU analysis of one of the 16 backends:
 
 ![perf100](/img/pg_stat_statements_v14_max_100.svg)
 ![perf400](/img/pg_stat_statements_v14_max_400.svg)
@@ -179,9 +183,30 @@ The two flame graphs look similar, except for the leftmost tower of the top one
 (`pg_stat_statements.max = 100`). Notice the WaitEventSetWait frame that
 accounts for 7.4% of all samples.
 
-It it's really a locking problem, a Off-CPU analysis is more adequate:
+> **Note:** You can download the svg files (rigth-click on the image) and run them
+> in your browser to get the full Flame Graph experience.
+
+If it's really a locking problem, a
+[Off-CPU analysis](https://www.brendangregg.com/offcpuanalysis.html) is more adequate:
 
 ![off100](/img/pg_stat_statements_v14_max_100_offcpu.svg)
 ![offf400](/img/pg_stat_statements_v14_max_400_offcpu.svg)
 
 This time, the two graphs are very different!
+
+The tower containing the `futex_wait` accounts for 28% percent of the off-cpu
+time, and I think it explains completely the performance drop. I'm unsure how to
+explain the other big tower (in the middle), but here's my guess: this is off-cpu
+time which would otherwise have been caused by involontary context switches, in
+the absence of locking within pg_stat_statements.
+
+# Conclusion
+
+The default value of `pg_stat_statements.max` is `5000`. For some unknown
+reason, the client decreased this value to `1000`. He probably assumed that the
+performance penalty of having pg_stat_statements loaded would be lesser, but on
+the contrary it resulted in a much bigger one. The documentation doesn't say
+anything about the danger of setting this value too low. Only recently, in
+version 14, we can rely on the view `pg_stat_statements_info`, containing the
+counter `dealloc`and the timestamp `stats_reset`, to get an idead about whether
+or not this parameter is set too low.
