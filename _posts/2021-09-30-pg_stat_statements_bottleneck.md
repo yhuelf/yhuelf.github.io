@@ -208,5 +208,5 @@ performance penalty of having pg_stat_statements loaded would be lesser, but on
 the contrary it resulted in a much bigger one. The documentation doesn't say
 anything about the danger of setting this value too low. Only recently, in
 version 14, we can rely on the view `pg_stat_statements_info`, containing the
-counter `dealloc`and the timestamp `stats_reset`, to get an idead about whether
+counter `dealloc`and the timestamp `stats_reset`, to get an idea about whether
 or not this parameter is set too low.
