@@ -23,7 +23,7 @@ query to check if the server connection is alive", but that didn't help much.
 {% include babar.html url="/img/babar.jpg" description="Me (embarrassed) and
 my client." %}
 
-Let's have a look at `pg_stat_statements̀ :
+Let's have a look at `pg_stat_statements`:
 
 ```
 postgres=# SELECT rolname, datname, query, calls, min_time, max_time, mean_time
@@ -141,7 +141,7 @@ and it's now possible to know how many deallocations occured since the last rese
 of pg_stat_statements. A high number for a small period indicates that
 `pg_stat_statements.max` is too low.
 
-Let's launch the pgbench script with `pg_stat_statements = 400`:
+Let's launch the pgbench script with `pg_stat_statements.max = 400`:
 
 ```
  xact_commit 
@@ -156,7 +156,7 @@ Let's launch the pgbench script with `pg_stat_statements = 400`:
 
 So we have an average of 9582 tx/s, and no deallocations.
 
-Let's launch the pgbench script again, with `pg_stat_statements = 400`:
+Let's launch the pgbench script again, with `pg_stat_statements.max = 100`:
 
 ```
  xact_commit 
