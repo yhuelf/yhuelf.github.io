@@ -210,3 +210,5 @@ anything about the danger of setting this value too low. Only recently, in
 version 14, we can rely on the view `pg_stat_statements_info`, containing the
 counter `dealloc`and the timestamp `stats_reset`, to get an idea about whether
 or not this parameter is set too low.
+
+_license: © 2021 -- [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)_
