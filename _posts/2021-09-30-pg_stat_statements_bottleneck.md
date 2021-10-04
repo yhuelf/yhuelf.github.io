@@ -7,7 +7,7 @@ tags: PostgreSQL performance pg_stat_statements
 
 I recently came across these surprising logs over the course of an audit at one
 of [Dalibo](https://dalibo.com/)'s client:
-(the logs are strimmed for more readability and anonymisation).
+(the logs are strimmed for better readability and anonymisation).
 
 ```
 Jul 26 00:07:51 postgres10[42230]: client=127.0.0.1 LOG:  duration: 406.403 ms  statement: select 1
@@ -42,7 +42,7 @@ postgres=# SELECT rolname, datname, query, calls, min_time, max_time, mean_time
 
 The `select 1` aren't there, and the longest `COMMIT` lasts 59ms. So what's
 going on? The normalized query `select $1` has probably been evicted from
-pg_stat_statements over the course of a deallocation, although it's frequency
+pg_stat_statements over the course of a deallocation, although its frequency
 is rather high. But the parameter `pg_stat_statements.max` is set to `1000`, and
 this a heavy loaded server with about 30,000 tx/s and 1200 backends during the
 busiest periods. But we still don't have any explaination about the
@@ -135,7 +135,7 @@ psql -d pgbench -c "select * from pg_stat_statements_info;"
 ```
 
 The last line of the above script uses a view that appeared with PostgreSQL 14.
-Indeed it seems I'm not the only one to have notice this problem
+Indeed it seems I'm not the only one to have noticed this problem
 [(see this thread on pgsql-hackers)](https://www.postgresql.org/message-id/0d9f1107772cf5c3f954e985464c7298%40oss.nttdata.com),
 and it's now possible to know how many deallocations occured since the last reset
 of pg_stat_statements. A high number for a small period indicates that
@@ -183,7 +183,7 @@ The two flame graphs look similar, except for the leftmost tower of the top one
 (`pg_stat_statements.max = 100`). Notice the WaitEventSetWait frame that
 accounts for 7.4% of all samples.
 
-> **Note:** You can download the svg files (rigth-click on the image) and run them
+> **Note:** You can download the svg files (right-click on the image) and run them
 > in your browser to get the full Flame Graph experience.
 
 If it's really a locking problem, a
