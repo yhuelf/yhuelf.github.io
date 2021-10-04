@@ -206,9 +206,19 @@ The default value of `pg_stat_statements.max` is `5000`. For some unknown
 reason, the client decreased this value to `1000`. He probably assumed that the
 performance penalty of having pg_stat_statements loaded would be lesser, but on
 the contrary it resulted in a much bigger one. The documentation doesn't say
-anything about the danger of setting this value too low. Only recently, in
-version 14, we can rely on the view `pg_stat_statements_info`, containing the
+anything about the danger of setting this value too low.
+Only recently, in version 14,
+we can rely on the view `pg_stat_statements_info`, containing the
 counter `dealloc`and the timestamp `stats_reset`, to get an idea about whether
-or not this parameter is set too low.
+or not this parameter is set too low. On my 4-cpu machine, the performance drop
+is noticeable with more than 700 deallocations per second, but to be on the safe
+side, I would recommend to increase this parameter if there's more than 10
+deallocations per second, also in order to avoid the extra CPU cost of
+these deallocations.
+For PostgreSQL versions prior to `14`, there's no simple way of knowing if this
+parameter is set high enough, but the presence of slow queries that shouldn't be
+slow in your logs is a good hint. Anyway, I would recommend sticking with the
+default value of `pg_stat_statements.max`, or increasing it, but never
+decreasing it.
 
 _license: © 2021 -- [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)_
