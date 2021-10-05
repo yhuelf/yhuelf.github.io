@@ -45,7 +45,7 @@ going on? The normalized query `select $1` has probably been evicted from
 pg_stat_statements over the course of a deallocation, although its frequency
 is rather high. But the parameter `pg_stat_statements.max` is set to `1000`, and
 this a heavy loaded server with about 30,000 tx/s and 1200 backends during the
-busiest periods. But we still don't have any explaination about the
+busiest periods. Now, we still don't have any explaination about the
 inconsistency between pg_stat_statements and the logs, regarding the slow
 COMMITs.
 
@@ -170,6 +170,19 @@ Let's launch the pgbench script again, with `pg_stat_statements.max = 100`:
 ```
 
 That's 25% less transactions!
+
+Also, in the logs, we observe 4 queries that lasted more than 20ms:
+
+```
+2021-10-04 08:43:53.584 CEST [54262] LOG:  duration: 23.487 ms  statement: SELECT 1 FROM t63;
+2021-10-04 08:43:56.335 CEST [54270] LOG:  duration: 21.671 ms  statement: SELECT 1 FROM t21;
+2021-10-04 08:44:04.226 CEST [54265] LOG:  duration: 20.455 ms  statement: SELECT 1 FROM t109;
+2021-10-04 08:44:28.480 CEST [54271] LOG:  duration: 48.653 ms  statement: COMMIT;
+```
+
+... compared to only one when `pg_stat_statements.max` is set to `400` (and
+pgbench lauched with rate limiting, so that the transaction rate matches the
+previous test).
 
 What is the cause of this performance drop? It is clearly linked to these 144878
 deallocations, but is it really the locking problem that I thought of? Let's use
