@@ -213,6 +213,46 @@ explain the other big tower (in the middle), but here's my guess: this is off-cp
 time which would otherwise have been caused by involontary context switches, in
 the absence of locking within pg_stat_statements.
 
+# Looking at wait events
+
+[PostgresPro](https://postgrespro.com/) provides a very nice extension,
+[pg_wait_sampling](https://github.com/postgrespro/pg_wait_sampling/), which we
+can use to understand what is slowing down a given backend :
+
+Let's launch the pgbench script again, with `pg_stat_statements.max = 100`, and
+let's query the `pg_wait_sampling_profile` view :
+
+```
+$ PID=33903
+$ psql -d pgbench -c "SET pg_wait_sampling.history_size = 100000;
+> SELECT pg_wait_sampling_reset_profile();
+> SELECT pg_sleep(10);
+> SELECT event_type, event, count FROM pg_wait_sampling_profile WHERE pid=$PID"
+
+ event_type |       event        | count
+------------+--------------------+-------
+ LWLock     | pg_stat_statements |    83
+ Client     | ClientRead         |   364
+```
+
+`LWLock` stands for **lightweight lock**, and most of them protect a particular
+data structure in shared memory. In this case, we also get the name of the
+extension that is waiting for this lock, and with no surprise, it's
+**pg_stat_statements**.
+
+With `pg_stat_statements.max = 400`, we get :
+
+```
+ event_type |   event    | count
+------------+------------+-------
+ Client     | ClientRead |    25
+```
+
+No lightweight locks, and much less `ClientRead` events, which I'm unsure how to
+explain, but which is consistant with the Off-CPU flame graph (`ClientRead`
+events probably match the `WaitEventSetWait` tower, and `LWLock` events match
+the `futex_wait` tower).
+
 # Conclusion
 
 The default value of `pg_stat_statements.max` is `5000`. For some unknown
